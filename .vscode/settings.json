@@ -1,0 +1,7 @@
+{
+    "cSpell.words": [
+        "dynamodb",
+        "pulumi"
+    ],
+    "python.pythonPath": "venv\\Scripts\\python.exe"
+}
