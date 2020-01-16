@@ -1,0 +1,3 @@
+name: dynamodb-s3-replication
+runtime: python
+description: Nuage DynamoDB to S3 replication
