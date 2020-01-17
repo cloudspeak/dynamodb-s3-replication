@@ -4,6 +4,7 @@
         "boto",
         "deserialize",
         "dynamodb",
+        "firehose",
         "ints",
         "pulumi"
     ],

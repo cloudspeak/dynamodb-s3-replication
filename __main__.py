@@ -2,9 +2,12 @@ import json
 import pulumi
 from firehosePolicy import getFirehoseRolePolicyDocument, getFirehoseRoleTrustPolicyDocument
 from lambdaPolicy import getLambdaRoleTrustPolicyDocument, getAllowDynamoStreamPolicyDocument, getAllowFirehosePutPolicyDocument
-from pulumi_aws import dynamodb, s3, kinesis, iam, lambda_, get_caller_identity
+from pulumi_aws import dynamodb, s3, kinesis, iam, lambda_, get_caller_identity, get_region
 
 accountId = get_caller_identity().account_id
+
+async def getRegion():
+    return (await get_region()).id
 
 dynamoTable = dynamodb.Table('ReplicationTable',
     attributes=[{
@@ -36,7 +39,7 @@ deliveryStream = kinesis.FirehoseDeliveryStream('ReplicationDeliveryStream',
 
 firehoseRolePolicy = iam.RolePolicy('ReplicationFirehosePolicy',
         role=firehoseRole.name,
-        policy=getFirehoseRolePolicyDocument(accountId, bucket.arn, deliveryStream.name).apply(lambda d: json.dumps(d))
+        policy=getFirehoseRolePolicyDocument(getRegion(), accountId, bucket.arn, deliveryStream.name).apply(lambda d: json.dumps(d))
 )
 
 lambdaRole = iam.Role('ReplicationLambdaRole',
