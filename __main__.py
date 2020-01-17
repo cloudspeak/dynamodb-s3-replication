@@ -23,12 +23,10 @@ dynamoTable = dynamodb.Table('ReplicationTable',
 bucket = s3.Bucket('ReplicationBucket')
 
 firehoseRole = iam.Role('ReplicationFirehoseRole',
-    name='ReplicationFirehoseRole',
     assume_role_policy=getFirehoseRoleTrustPolicyDocument(accountId)
 )
 
 deliveryStream = kinesis.FirehoseDeliveryStream('ReplicationDeliveryStream',
-    name='ReplicationDeliveryStream',
     destination='extended_s3',
     extended_s3_configuration={
         'bucketArn': bucket.arn,
@@ -37,7 +35,7 @@ deliveryStream = kinesis.FirehoseDeliveryStream('ReplicationDeliveryStream',
     }
 )
 
-firehoseRolePolicy = iam.RolePolicy('ReplicationFirehosePolicy',
+firehoseRolePolicy = iam.RolePolicy('ReplicationDeliveryStreamPolicy',
         role=firehoseRole.name,
         policy=getFirehoseRolePolicyDocument(getRegion(), accountId, bucket.arn, deliveryStream.name).apply(lambda d: json.dumps(d))
 )
@@ -46,7 +44,7 @@ lambdaRole = iam.Role('ReplicationLambdaRole',
     assume_role_policy=getLambdaRoleTrustPolicyDocument()
 )
 
-lambdaRoleBasicExecutionPolicy = iam.RolePolicyAttachment('ReplicationLambdaBasicExecPol',
+lambdaRoleBasicExecutionPolicy = iam.RolePolicyAttachment('ReplicationLambdaBasicExecPolicy',
     role=lambdaRole.name,
     policy_arn='arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
 )
