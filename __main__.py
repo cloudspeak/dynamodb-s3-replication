@@ -1,7 +1,8 @@
 import json
 import pulumi
 from firehosePolicy import getFirehoseRolePolicyDocument, getFirehoseRoleTrustPolicyDocument
-from pulumi_aws import dynamodb, s3, kinesis, iam, get_caller_identity
+from lambdaPolicy import getLambdaRoleTrustPolicyDocument
+from pulumi_aws import dynamodb, s3, kinesis, iam, lambda_, get_caller_identity
 
 dynamoTable = dynamodb.Table('ReplicationTable',
     attributes=[{
@@ -35,3 +36,21 @@ kinesis.FirehoseDeliveryStream('ReplicationDeliveryStream',
             'compressionFormat': 'GZIP'
         }
         )
+
+lambdaRole = iam.Role('ReplicationLambdaRole',
+    assume_role_policy=getLambdaRoleTrustPolicyDocument()
+)
+
+lambdaRoleBasicExecutionPolicy = iam.RolePolicyAttachment('ReplicationLambdaBasicExecPol',
+    role=lambdaRole.name,
+    policy_arn='arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+)
+
+lambda_.Function('ReplicationLambdaFunction',
+    role=lambdaRole.arn,
+    runtime='python3.7',
+    handler='dynamoTriggerLambda.handler',
+    code=pulumi.AssetArchive({
+        ".": pulumi.FileArchive("./dynamoTriggerLambda"),
+    }),
+)
