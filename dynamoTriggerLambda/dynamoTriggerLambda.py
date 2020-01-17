@@ -1,17 +1,20 @@
 import json
+import boto3
 from boto3.dynamodb.types import TypeDeserializer
 
-
+DELIVERY_STREAM_NAME = "ReplicationDeliveryStream"
 
 def handler(event, context):
     """ This handler consumes DynamoDB INSERT events, converts the records into a more standard
         JSON representation, and puts the result into a Kinesis Firehose stream.
     """
-    
+    firehoseClient = boto3.client('firehose')
     firehoseRecords = dynamoInsertEventsToFirehoseRecords(event)
+    response = firehoseClient.put_record_batch(
+        DeliveryStreamName=DELIVERY_STREAM_NAME,
+        Records=firehoseRecords
+    )
     
-    print(firehoseRecords)
-
     return {
         'statusCode': 200,
         'body': 'Success'

@@ -1,3 +1,5 @@
+import pulumi
+
 def getFirehoseRoleTrustPolicyDocument(accountId):
     """Returns a trust (AssumeRole) policy allowing the firehose service for a given account"""
 
@@ -20,10 +22,10 @@ def getFirehoseRoleTrustPolicyDocument(accountId):
         ]
     }
 
-def getFirehoseRolePolicyDocument():
+def getFirehoseRolePolicyDocument(accountId, bucketArn, deliveryStreamName):
     """ Returns a role permitting Firehose to read Dynamo tables and write to S3 """
 
-    return {
+    return pulumi.Output.all(bucketArn, deliveryStreamName).apply(lambda outputs: {
         "Version": "2012-10-17",
         "Statement": [
             {
@@ -48,6 +50,8 @@ def getFirehoseRolePolicyDocument():
                     "s3:PutObject"
                 ],
                 "Resource": [
+                    outputs[0],
+                    f'{outputs[0]}/*',
                     "arn:aws:s3:::%FIREHOSE_BUCKET_NAME%",
                     "arn:aws:s3:::%FIREHOSE_BUCKET_NAME%/*"
                 ]
@@ -59,7 +63,7 @@ def getFirehoseRolePolicyDocument():
                     "logs:PutLogEvents"
                 ],
                 "Resource": [
-                    "arn:aws:logs:eu-west-1:558800484112:log-group:/aws/kinesisfirehose/ReplicationDeliveryStream:log-stream:*"
+                    f'arn:aws:logs:eu-west-1:{accountId}:log-group:/aws/kinesisfirehose/{outputs[1]}:log-stream:*'
                 ]
             },
             {
@@ -70,7 +74,8 @@ def getFirehoseRolePolicyDocument():
                     "kinesis:GetShardIterator",
                     "kinesis:GetRecords"
                 ],
-                "Resource": "arn:aws:kinesis:eu-west-1:558800484112:stream/%FIREHOSE_STREAM_NAME%"
+                "Resource": f'arn:aws:kinesis:eu-west-1:{accountId}:stream/%FIREHOSE_STREAM_NAME%'
             }
         ]
-    }
+    })
+

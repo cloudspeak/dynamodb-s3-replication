@@ -1,8 +1,10 @@
 import json
 import pulumi
 from firehosePolicy import getFirehoseRolePolicyDocument, getFirehoseRoleTrustPolicyDocument
-from lambdaPolicy import getLambdaRoleTrustPolicyDocument, getAllowDynamoStreamPolicyDocument
+from lambdaPolicy import getLambdaRoleTrustPolicyDocument, getAllowDynamoStreamPolicyDocument, getAllowFirehosePutPolicyDocument
 from pulumi_aws import dynamodb, s3, kinesis, iam, lambda_, get_caller_identity
+
+accountId = get_caller_identity().account_id
 
 dynamoTable = dynamodb.Table('ReplicationTable',
     attributes=[{
@@ -19,15 +21,10 @@ bucket = s3.Bucket('ReplicationBucket')
 
 firehoseRole = iam.Role('ReplicationFirehoseRole',
     name='ReplicationFirehoseRole',
-    assume_role_policy=getFirehoseRoleTrustPolicyDocument(get_caller_identity().account_id)
+    assume_role_policy=getFirehoseRoleTrustPolicyDocument(accountId)
 )
 
-firehoseRolePolicy = iam.RolePolicy('ReplicationFirehosePolicy',
-        role=firehoseRole.name,
-        policy=json.dumps(getFirehoseRolePolicyDocument())
-)
-
-kinesis.FirehoseDeliveryStream('ReplicationDeliveryStream',
+deliveryStream = kinesis.FirehoseDeliveryStream('ReplicationDeliveryStream',
     name='ReplicationDeliveryStream',
     destination='extended_s3',
     extended_s3_configuration={
@@ -35,6 +32,11 @@ kinesis.FirehoseDeliveryStream('ReplicationDeliveryStream',
         'role_arn': firehoseRole.arn,
         'compressionFormat': 'GZIP'
     }
+)
+
+firehoseRolePolicy = iam.RolePolicy('ReplicationFirehosePolicy',
+        role=firehoseRole.name,
+        policy=getFirehoseRolePolicyDocument(accountId, bucket.arn, deliveryStream.name).apply(lambda d: json.dumps(d))
 )
 
 lambdaRole = iam.Role('ReplicationLambdaRole',
@@ -49,6 +51,11 @@ lambdaRoleBasicExecutionPolicy = iam.RolePolicyAttachment('ReplicationLambdaBasi
 lambdaRoleAllowDynamoStreamPolicy = iam.RolePolicy("ReplicationLambdaAllowDynamoPolicy",
     role=lambdaRole.name,
     policy=getAllowDynamoStreamPolicyDocument(dynamoTable.stream_arn).apply(lambda d: json.dumps(d))
+)
+
+lambdaRoleAllowFirehosePutPolicy = iam.RolePolicy("ReplicationLambdaAllowFirehosePolicy",
+    role=lambdaRole.name,
+    policy=getAllowFirehosePutPolicyDocument(deliveryStream.arn).apply(lambda d: json.dumps(d))
 )
 
 dynamoTriggerFunction = lambda_.Function('ReplicationLambdaFunction',
