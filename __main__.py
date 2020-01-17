@@ -72,3 +72,7 @@ dynamoTrigger = lambda_.EventSourceMapping("ReplicationDynamoTriggerMapping",
     function_name=dynamoTriggerFunction.arn,
     starting_position='LATEST'
 )
+
+pulumi.export('table_name', dynamoTable.name)
+pulumi.export('bucket_name', bucket.id)
+pulumi.export('delivery_stream_name', deliveryStream.name)
