@@ -11,3 +11,24 @@ def getLambdaRoleTrustPolicyDocument():
             }
         ]
     }
+
+def getAllowDynamoStreamPolicyDocument(streamArn):
+    return streamArn.apply(lambda arn: {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "dynamodb:GetShardIterator",
+                    "dynamodb:DescribeStream",
+                    "dynamodb:GetRecords"
+                ],
+                "Resource": arn
+            },
+            {
+                "Effect": "Allow",
+                "Action": "dynamodb:ListStreams",
+                "Resource": "*"
+            }
+        ]
+    })

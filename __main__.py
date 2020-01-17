@@ -1,7 +1,7 @@
 import json
 import pulumi
 from firehosePolicy import getFirehoseRolePolicyDocument, getFirehoseRoleTrustPolicyDocument
-from lambdaPolicy import getLambdaRoleTrustPolicyDocument
+from lambdaPolicy import getLambdaRoleTrustPolicyDocument, getAllowDynamoStreamPolicyDocument
 from pulumi_aws import dynamodb, s3, kinesis, iam, lambda_, get_caller_identity
 
 dynamoTable = dynamodb.Table('ReplicationTable',
@@ -28,14 +28,14 @@ firehoseRolePolicy = iam.RolePolicy('ReplicationFirehosePolicy',
 )
 
 kinesis.FirehoseDeliveryStream('ReplicationDeliveryStream',
-        name='ReplicationDeliveryStream',
-        destination='extended_s3',
-        extended_s3_configuration={
-            'bucketArn': bucket.arn,
-            'role_arn': firehoseRole.arn,
-            'compressionFormat': 'GZIP'
-        }
-        )
+    name='ReplicationDeliveryStream',
+    destination='extended_s3',
+    extended_s3_configuration={
+        'bucketArn': bucket.arn,
+        'role_arn': firehoseRole.arn,
+        'compressionFormat': 'GZIP'
+    }
+)
 
 lambdaRole = iam.Role('ReplicationLambdaRole',
     assume_role_policy=getLambdaRoleTrustPolicyDocument()
@@ -46,11 +46,22 @@ lambdaRoleBasicExecutionPolicy = iam.RolePolicyAttachment('ReplicationLambdaBasi
     policy_arn='arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
 )
 
-lambda_.Function('ReplicationLambdaFunction',
+lambdaRoleAllowDynamoStreamPolicy = iam.RolePolicy("ReplicationLambdaAllowDynamoPolicy",
+    role=lambdaRole.name,
+    policy=getAllowDynamoStreamPolicyDocument(dynamoTable.stream_arn).apply(lambda d: json.dumps(d))
+)
+
+dynamoTriggerFunction = lambda_.Function('ReplicationLambdaFunction',
     role=lambdaRole.arn,
     runtime='python3.7',
     handler='dynamoTriggerLambda.handler',
     code=pulumi.AssetArchive({
         ".": pulumi.FileArchive("./dynamoTriggerLambda"),
     }),
+)
+
+dynamoTrigger = lambda_.EventSourceMapping("ReplicationDynamoTriggerMapping",
+    event_source_arn=dynamoTable.stream_arn,
+    function_name=dynamoTriggerFunction.arn,
+    starting_position='LATEST'
 )
