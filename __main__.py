@@ -65,6 +65,11 @@ dynamoTriggerFunction = lambda_.Function('ReplicationLambdaFunction',
     code=pulumi.AssetArchive({
         ".": pulumi.FileArchive("./dynamoTriggerLambda"),
     }),
+    environment={
+        "Variables": {
+            "DELIVERY_STREAM_NAME": deliveryStream.name
+        }
+    }
 )
 
 dynamoTrigger = lambda_.EventSourceMapping("ReplicationDynamoTriggerMapping",
