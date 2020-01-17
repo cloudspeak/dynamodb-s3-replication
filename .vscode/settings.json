@@ -1,6 +1,10 @@
 {
     "cSpell.words": [
+        "Deserializer",
+        "boto",
+        "deserialize",
         "dynamodb",
+        "ints",
         "pulumi"
     ],
     "python.pythonPath": "venv\\Scripts\\python.exe"

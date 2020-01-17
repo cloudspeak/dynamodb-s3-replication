@@ -1,11 +1,53 @@
 import json
+from boto3.dynamodb.types import TypeDeserializer
+
+
 
 def handler(event, context):
+    """ This handler consumes DynamoDB INSERT events, converts the records into a more standard
+        JSON representation, and puts the result into a Kinesis Firehose stream.
+    """
     
-    print("Event:")
-    print(event)
+    firehoseRecords = dynamoInsertEventsToFirehoseRecords(event)
+    
+    print(firehoseRecords)
 
     return {
         'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
+        'body': 'Success'
     }
+
+def dynamoInsertEventsToFirehoseRecords(event):
+    insertEvents = filter(isDynamoInsertEvent, event["Records"])
+    dynamoRecords = map(lambda e: e["dynamodb"]["NewImage"], insertEvents)
+    jsonRecords = map(dynamoRecordToJsonRecord, dynamoRecords)
+    firehoseRecords = map(jsonRecordToFirehoseRecord, jsonRecords)
+    return list(firehoseRecords)
+    
+def isDynamoInsertEvent(event):
+    return event["eventSource"] == 'aws:dynamodb' and event["eventName"] == 'INSERT'
+
+def jsonRecordToFirehoseRecord(record):
+    return {
+        "Data": json.dumps(record)
+    }
+
+def dynamoRecordToJsonRecord(record):
+    result = CustomTypeDeserializer().deserialize({
+        "M": record
+    })
+
+    return result
+
+class CustomTypeDeserializer(TypeDeserializer):
+    """ boto3 has a build in TypeDeserializer, but it converts numbers to decimal types.  This
+        class simply overrides this behavior so that it converts numbers to ints or floats
+        (which could result in some loss of precision).
+    """
+    def _deserialize_n(self, value):
+        num = float(value)
+
+        if num.is_integer():
+            return int(num)
+        else:
+            return num
