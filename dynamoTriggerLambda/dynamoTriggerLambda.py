@@ -11,17 +11,25 @@ def handler(event, context):
     """
     deliveryStreamName = os.environ["DELIVERY_STREAM_NAME"]
     firehoseClient = boto3.client('firehose')
-
     firehoseRecords = dynamoInsertEventsToFirehoseRecords(event)
-    response = firehoseClient.put_record_batch(
-        DeliveryStreamName=deliveryStreamName,
-        Records=firehoseRecords
-    )
+    sendRecordsToFirehose(firehoseClient, deliveryStreamName, firehoseRecords)
     
     return {
         'statusCode': 200,
         'body': 'Success'
     }
+
+def sendRecordsToFirehose(client, deliveryStreamName, records):
+    if len(records) > 0:
+        response = client.put_record_batch(
+            DeliveryStreamName=deliveryStreamName,
+            Records=records
+        )
+
+        if "FailedPutCount" in response and response["FailedPutCount"] > 0:
+            print(f'WARNING: {response["FailedPutCount"]} of {len(records)} records failed when putting to Firehose')
+        else:
+            print(f'Successfully put {len(records)} records into Firehose delivery stream "{deliveryStreamName}"')
 
 def dynamoInsertEventsToFirehoseRecords(event):
     insertEvents = filter(isDynamoInsertEvent, event["Records"])
@@ -42,7 +50,6 @@ def dynamoRecordToJsonRecord(record):
     result = CustomTypeDeserializer().deserialize({
         "M": record
     })
-
     return result
 
 class CustomTypeDeserializer(TypeDeserializer):

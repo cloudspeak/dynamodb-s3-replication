@@ -1,6 +1,7 @@
 import unittest
 import json
-from dynamoTriggerLambda.dynamoTriggerLambda import dynamoInsertEventsToFirehoseRecords
+from unittest.mock import MagicMock, Mock
+from dynamoTriggerLambda.dynamoTriggerLambda import dynamoInsertEventsToFirehoseRecords, sendRecordsToFirehose
 
 class DynamoTriggerLambdaTests(unittest.TestCase):
 
@@ -119,6 +120,32 @@ class DynamoTriggerLambdaTests(unittest.TestCase):
         actualOutput = dynamoInsertEventsToFirehoseRecords(inputEvent)
 
         self.assertEqual(expectedOutput, actualOutput)
+
+    def test_when_call_send_records_then_client_is_called_correctly(self):
+
+        mockClient = Mock()
+        mockClient.put_record_batch.return_value = {
+            "FailedRecordCount": 0
+        }
+
+        records = [
+            self.createFirehoseRecord(1, "Test1"),
+            self.createFirehoseRecord(2, "Test2")
+        ]
+
+        sendRecordsToFirehose(mockClient, "streamname", records)
+
+        mockClient.put_record_batch.assert_called_once_with(
+            DeliveryStreamName="streamname",
+            Records=records
+        )
+
+    def test_when_call_send_records_and_empty_records_then_client_not_called(self):
+
+        mockClient = Mock()
+        sendRecordsToFirehose(mockClient, "streamname", [])
+
+        mockClient.put_record_batch.assert_not_called()
 
 
     ## Helper methods
