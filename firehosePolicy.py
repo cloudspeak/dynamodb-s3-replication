@@ -66,9 +66,7 @@ def getFirehoseRolePolicyDocument(region, accountId, bucketArnOutput, deliverySt
                 ],
                 "Resource": [
                     bucketArn,
-                    f'{bucketArn}/*',
-                    "arn:aws:s3:::%FIREHOSE_BUCKET_NAME%",
-                    "arn:aws:s3:::%FIREHOSE_BUCKET_NAME%/*"
+                    f'{bucketArn}/*'
                 ]
             },
             {
@@ -89,7 +87,7 @@ def getFirehoseRolePolicyDocument(region, accountId, bucketArnOutput, deliverySt
                     "kinesis:GetShardIterator",
                     "kinesis:GetRecords"
                 ],
-                "Resource": f'arn:aws:kinesis:{region}:{accountId}:stream/%FIREHOSE_STREAM_NAME%'
+                "Resource": f'arn:aws:kinesis:{region}:{accountId}:stream/{deliveryStreamName}'
             }
         ]
     })
