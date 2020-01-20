@@ -2,6 +2,7 @@ import os
 import json
 import boto3
 from boto3.dynamodb.types import TypeDeserializer
+from dynamoEventNames import DynamoEventName, DynamoEventNames
 
 DELIVERY_STREAM_VAR_NAME = "DELIVERY_STREAM_NAME"
 
@@ -9,9 +10,10 @@ def handler(event, context):
     """ This handler consumes DynamoDB INSERT events, converts the records into a more standard
         JSON representation, and puts the result into a Kinesis Firehose stream.
     """
+
     deliveryStreamName = os.environ[DELIVERY_STREAM_VAR_NAME]
     firehoseClient = boto3.client('firehose')
-    firehoseRecords = dynamoInsertEventsToFirehoseRecords(event)
+    firehoseRecords = dynamoEventsToFirehoseRecords(event)
     sendRecordsToFirehose(firehoseClient, deliveryStreamName, firehoseRecords)
     
     return {
@@ -31,26 +33,39 @@ def sendRecordsToFirehose(client, deliveryStreamName, records):
         else:
             print(f'Successfully put {len(records)} records into Firehose delivery stream "{deliveryStreamName}"')
 
-def dynamoInsertEventsToFirehoseRecords(event):
-    insertEvents = filter(isDynamoInsertEvent, event["Records"])
-    dynamoRecords = map(lambda e: e["dynamodb"]["NewImage"], insertEvents)
-    jsonRecords = map(dynamoRecordToJsonRecord, dynamoRecords)
+def dynamoEventsToFirehoseRecords(event):
+    eventRecords = filter(isRelevantDynamoEvent, event["Records"])
+    jsonRecords = map(dynamoEventRecordToJsonRecord, eventRecords)
     firehoseRecords = map(jsonRecordToFirehoseRecord, jsonRecords)
     return list(firehoseRecords)
     
-def isDynamoInsertEvent(event):
-    return event["eventSource"] == 'aws:dynamodb' and event["eventName"] == 'INSERT'
+def isRelevantDynamoEvent(event):
+    return event["eventSource"] == 'aws:dynamodb' and event["eventName"] in DynamoEventNames
 
 def jsonRecordToFirehoseRecord(record):
     return {
         "Data": json.dumps(record)
     }
 
-def dynamoRecordToJsonRecord(record):
-    result = CustomTypeDeserializer().deserialize({
-        "M": record
-    })
-    return result
+def dynamoEventRecordToJsonRecord(record):
+
+    deserializer = CustomTypeDeserializer()
+
+    if record["eventName"] == DynamoEventName.REMOVE:
+        return {
+            "Operation": record["eventName"],
+            "Id": deserializer.deserialize(record["dynamodb"]["Keys"]["Id"])
+        }
+
+    else:
+        return {
+            "Operation": record["eventName"],
+            "Data": deserializer.deserialize({
+                "M": record["dynamodb"]["NewImage"]
+            })
+        }
+
+        
 
 class CustomTypeDeserializer(TypeDeserializer):
     """ boto3 has a build in TypeDeserializer, but it converts numbers to decimal types.  This
