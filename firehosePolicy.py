@@ -22,16 +22,25 @@ def getFirehoseRoleTrustPolicyDocument(accountId):
         ]
     }
 
-def getFirehoseRolePolicyDocument(region, accountId, bucketArn, deliveryStreamName):
+def applyFirehoseRolePolicyDocumentOutputs(bucketArn, deliveryStreamName, func):
+    """ Applies the Pulumi outputs `bucketArn` and `deliveryStringName` to the
+        given function.
+
+        bucketArn -- The destination bucket ARN as a Pulumi Output
+        deliveryStreamName -- The name of the Firehose delivery stream as a Pulumi Output
+        func -- A lambda function with inputs (bucketArn: str, deliveryStringName: str)
+    """
+    return pulumi.Output.all(bucketArn, deliveryStreamName).apply(lambda outputs: func(outputs[0], outputs[1]))
+
+def getFirehoseRolePolicyDocument(region, accountId, bucketArnOutput, deliveryStreamNameOutput):
     """ Returns a role permitting Firehose to read Dynamo tables and write to S3
     
         region -- The AWS region as a string
         accountID -- The AWS account ID as a string
-        bucketArn -- The destination bucket ARN as a Pulumi Output
-        deliveryStringName -- The name of the Firehose delivery stream as a Pulumi Output
+        bucketArnOutput -- The destination bucket ARN as a Pulumi Output
+        deliveryStreamNameOutput -- The name of the Firehose delivery stream as a Pulumi Output
     """
-
-    return pulumi.Output.all(bucketArn, deliveryStreamName).apply(lambda outputs: {
+    return applyFirehoseRolePolicyDocumentOutputs(bucketArnOutput, deliveryStreamNameOutput, lambda bucketArn, deliveryStreamName: {
         "Version": "2012-10-17",
         "Statement": [
             {
@@ -56,8 +65,8 @@ def getFirehoseRolePolicyDocument(region, accountId, bucketArn, deliveryStreamNa
                     "s3:PutObject"
                 ],
                 "Resource": [
-                    outputs[0],
-                    f'{outputs[0]}/*',
+                    bucketArn,
+                    f'{bucketArn}/*',
                     "arn:aws:s3:::%FIREHOSE_BUCKET_NAME%",
                     "arn:aws:s3:::%FIREHOSE_BUCKET_NAME%/*"
                 ]
@@ -69,7 +78,7 @@ def getFirehoseRolePolicyDocument(region, accountId, bucketArn, deliveryStreamNa
                     "logs:PutLogEvents"
                 ],
                 "Resource": [
-                    f'arn:aws:logs:{region}:{accountId}:log-group:/aws/kinesisfirehose/{outputs[1]}:log-stream:*'
+                    f'arn:aws:logs:{region}:{accountId}:log-group:/aws/kinesisfirehose/{deliveryStreamName}:log-stream:*'
                 ]
             },
             {
