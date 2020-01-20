@@ -25,13 +25,13 @@ def getFirehoseRoleTrustPolicyDocument(accountId):
 def getFirehoseRolePolicyDocument(region, accountId, bucketArn, deliveryStreamName):
     """ Returns a role permitting Firehose to read Dynamo tables and write to S3
     
-        region -- The AWS region, as an awaitable
+        region -- The AWS region as a string
         accountID -- The AWS account ID as a string
         bucketArn -- The destination bucket ARN as a Pulumi Output
         deliveryStringName -- The name of the Firehose delivery stream as a Pulumi Output
     """
 
-    return pulumi.Output.all(bucketArn, deliveryStreamName, region).apply(lambda outputs: {
+    return pulumi.Output.all(bucketArn, deliveryStreamName).apply(lambda outputs: {
         "Version": "2012-10-17",
         "Statement": [
             {
@@ -69,7 +69,7 @@ def getFirehoseRolePolicyDocument(region, accountId, bucketArn, deliveryStreamNa
                     "logs:PutLogEvents"
                 ],
                 "Resource": [
-                    f'arn:aws:logs:{outputs[2]}:{accountId}:log-group:/aws/kinesisfirehose/{outputs[1]}:log-stream:*'
+                    f'arn:aws:logs:{region}:{accountId}:log-group:/aws/kinesisfirehose/{outputs[1]}:log-stream:*'
                 ]
             },
             {
@@ -80,7 +80,7 @@ def getFirehoseRolePolicyDocument(region, accountId, bucketArn, deliveryStreamNa
                     "kinesis:GetShardIterator",
                     "kinesis:GetRecords"
                 ],
-                "Resource": f'arn:aws:kinesis:{outputs[2]}:{accountId}:stream/%FIREHOSE_STREAM_NAME%'
+                "Resource": f'arn:aws:kinesis:{region}:{accountId}:stream/%FIREHOSE_STREAM_NAME%'
             }
         ]
     })
