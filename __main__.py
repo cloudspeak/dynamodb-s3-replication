@@ -61,9 +61,7 @@ dynamoTriggerFunction = lambda_.Function('ReplicationLambdaFunction',
     role=lambdaRole.arn,
     runtime='python3.7',
     handler='dynamoTriggerLambda.handler',
-    code=pulumi.AssetArchive({
-        ".": pulumi.FileArchive("./dynamoTriggerLambda"),
-    }),
+    code=pulumi.FileArchive("./dynamoTriggerLambda"),
     environment={
         "Variables": {
             "DELIVERY_STREAM_NAME": deliveryStream.name
