@@ -9,7 +9,7 @@ def handler(event, context):
     """ This handler consumes DynamoDB INSERT events, converts the records into a more standard
         JSON representation, and puts the result into a Kinesis Firehose stream.
     """
-    deliveryStreamName = os.environ["DELIVERY_STREAM_NAME"]
+    deliveryStreamName = os.environ[DELIVERY_STREAM_VAR_NAME]
     firehoseClient = boto3.client('firehose')
     firehoseRecords = dynamoInsertEventsToFirehoseRecords(event)
     sendRecordsToFirehose(firehoseClient, deliveryStreamName, firehoseRecords)
