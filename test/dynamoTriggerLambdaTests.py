@@ -39,7 +39,7 @@ class DynamoTriggerLambdaTests(unittest.TestCase):
         self.assertEqual(expectedOutput, actualOutput)
 
 
-    def test_when_delete_event_occurs_then_convert_to_firehose_record(self):
+    def test_when_remove_event_occurs_then_convert_to_firehose_record(self):
         inputEvent = {
             "Records": [
                 self.createDynamoEvent(1, "Test1", eventName=DynamoEventName.REMOVE)
